@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wound AI Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0:#0a0c10;--bg1:#0f1218;--bg2:#151820;--bg3:#1c2030;
+    --border:#252b3a;--border2:#2e3650;
+    --t0:#e2e6f0;--t1:#8892a8;--t2:#4a5268;
+    --accent:#4f8ef7;--accent2:#2563eb;
+    --green:#34c97a;--yellow:#f0a528;--red:#e84a4a;
+    --green-dim:rgba(52,201,122,0.12);
+    --yellow-dim:rgba(240,165,40,0.12);
+    --red-dim:rgba(232,74,74,0.12);
+    --accent-dim:rgba(79,142,247,0.1);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg0);color:var(--t0);font-family:'IBM Plex Mono',monospace;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,142,247,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+  .wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:0 24px 80px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:28px 0 24px;border-bottom:1px solid var(--border);margin-bottom:48px}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-mark{width:32px;height:32px}
+  .logo-mark svg{width:100%;height:100%}
+  .logo-text{font-size:15px;font-weight:600;letter-spacing:0.08em;color:var(--t0)}
+  .logo-text span{color:var(--accent)}
+  .header-tag{font-size:10px;color:var(--t2);letter-spacing:0.15em;text-transform:uppercase;border:1px solid var(--border);padding:4px 10px}
+  .hero{margin-bottom:48px;animation:fadeUp 0.6s ease both}
+  .hero h1{font-family:'IBM Plex Mono',monospace;font-size:clamp(28px,4vw,42px);font-weight:600;line-height:1.15;letter-spacing:-0.02em;margin-bottom:14px}
+  .hero h1 em{font-style:normal;color:var(--accent)}
+  .hero p{font-family:'IBM Plex Sans',sans-serif;font-size:14px;color:var(--t1);font-weight:300;line-height:1.7;max-width:480px}
+  .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;animation:fadeUp 0.6s 0.1s ease both}
+  @media(max-width:640px){.main-grid{grid-template-columns:1fr}}
+  .card{background:var(--bg1);border:1px solid var(--border);padding:28px;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.4}
+  .card-label{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--t2);margin-bottom:20px}
+  .upload-zone{border:1px dashed var(--border2);padding:36px 20px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;background:var(--bg2);position:relative;margin-bottom:16px}
+  .upload-zone:hover,.upload-zone.drag-over{border-color:var(--accent);background:var(--accent-dim)}
+  .upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .upload-icon{margin-bottom:12px}
+  .upload-zone p{font-size:12px;color:var(--t1);line-height:1.6}
+  .upload-zone strong{color:var(--accent);font-weight:500}
+  #preview-wrap{display:none;margin-bottom:16px;position:relative}
+  #preview-wrap img{width:100%;max-height:220px;object-fit:cover;display:block;filter:saturate(0.85)}
+  #preview-wrap .remove-btn{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);border:1px solid var(--border2);color:var(--t1);font-size:11px;padding:4px 8px;cursor:pointer;font-family:inherit;transition:color 0.2s}
+  #preview-wrap .remove-btn:hover{color:var(--red)}
+  .btn-analyze{width:100%;padding:14px;background:var(--accent);color:#fff;border:none;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;transition:background 0.2s,transform 0.1s;position:relative;overflow:hidden}
+  .btn-analyze:hover{background:var(--accent2)}
+  .btn-analyze:active{transform:scale(0.99)}
+  .btn-analyze:disabled{opacity:0.4;cursor:not-allowed}
+  .btn-analyze .spinner{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px}
+  .btn-analyze.loading .spinner{display:inline-block}
+  .btn-analyze.loading .btn-text{opacity:0.6}
+  .info-item{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border)}
+  .info-item:last-child{border-bottom:none}
+  .info-dot{width:6px;height:6px;border-radius:50%;margin-top:6px;flex-shrink:0}
+  .info-item p{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--t1);line-height:1.6}
+  .info-item strong{display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--t0);margin-bottom:2px;font-weight:500}
+  .result-section{margin-top:20px;animation:fadeUp 0.5s ease both}
+  .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+  @media(max-width:640px){.result-grid{grid-template-columns:1fr}}
+  .verdict-card{background:var(--bg1);border:1px solid var(--border);padding:28px;position:relative}
+  .verdict-card.healthy{border-color:rgba(52,201,122,0.35)}
+  .verdict-card.inflamed{border-color:rgba(240,165,40,0.35)}
+  .verdict-card.infected{border-color:rgba(232,74,74,0.35)}
+  .verdict-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+  .verdict-card.healthy::before{background:var(--green)}
+  .verdict-card.inflamed::before{background:var(--yellow)}
+  .verdict-card.infected::before{background:var(--red)}
+  .verdict-tag{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--t2);margin-bottom:12px}
+  .verdict-label{font-size:32px;font-weight:600;letter-spacing:-0.02em;margin-bottom:4px}
+  .verdict-label.healthy{color:var(--green)}
+  .verdict-label.inflamed{color:var(--yellow)}
+  .verdict-label.infected{color:var(--red)}
+  .verdict-stage{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--t1);margin-bottom:24px}
+  .agree-badge{display:inline-block;font-size:9px;padding:3px 8px;letter-spacing:0.08em;margin-left:10px;vertical-align:middle}
+  .agree-badge.high{background:var(--green-dim);color:var(--green)}
+  .agree-badge.medium{background:var(--yellow-dim);color:var(--yellow)}
+  .agree-badge.low{background:var(--red-dim);color:var(--red)}
+  .score-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t2);margin-bottom:6px}
+  .score-row span:last-child{font-weight:600;font-size:13px;color:var(--t0)}
+  .score-bar-bg{height:6px;background:var(--bg3);position:relative;overflow:hidden}
+  .score-bar-fill{height:100%;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
+  .score-bar-fill.healthy{background:var(--green)}
+  .score-bar-fill.inflamed{background:var(--yellow)}
+  .score-bar-fill.infected{background:var(--red)}
+  .prob-section{margin-top:20px}
+  .prob-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .prob-name{font-size:10px;color:var(--t1);width:64px;flex-shrink:0}
+  .prob-bar-bg{flex:1;height:4px;background:var(--bg3);overflow:hidden}
+  .prob-bar-fill{height:100%;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
+  .prob-bar-fill.healthy{background:var(--green)}
+  .prob-bar-fill.inflamed{background:var(--yellow)}
+  .prob-bar-fill.infected{background:var(--red)}
+  .prob-pct{font-size:10px;color:var(--t1);width:36px;text-align:right}
+  .models-card{background:var(--bg1);border:1px solid var(--border);padding:28px}
+  .model-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border)}
+  .model-row:last-child{border-bottom:none}
+  .model-name{font-size:10px;color:var(--t2);letter-spacing:0.1em}
+  .model-result{display:flex;align-items:center;gap:8px}
+  .model-class{font-size:12px;font-weight:500}
+  .model-class.healthy{color:var(--green)}
+  .model-class.inflamed{color:var(--yellow)}
+  .model-class.infected{color:var(--red)}
+  .model-conf{font-size:10px;color:var(--t2);padding:2px 6px;background:var(--bg3)}
+  .findings-card{background:var(--bg1);border:1px solid var(--border);padding:28px;margin-top:0}
+  .finding-row{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);animation:fadeUp 0.4s ease both}
+  .finding-row:last-child{border-bottom:none}
+  .finding-icon{font-size:12px;margin-top:1px;flex-shrink:0}
+  .finding-text{font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--t0);line-height:1.55}
+  .risk-badge{display:inline-block;font-size:9px;letter-spacing:0.1em;padding:2px 6px;margin-left:8px;background:var(--red-dim);color:var(--red);vertical-align:middle}
+  .warn-box{margin-top:12px;padding:10px 14px;border:1px solid rgba(240,165,40,0.3);background:var(--yellow-dim);color:var(--yellow);font-size:11px}
+  .error-box{margin-top:20px;padding:16px 20px;border:1px solid rgba(232,74,74,0.4);background:var(--red-dim);color:var(--red);font-size:13px}
+  .disclaimer{margin-top:40px;padding:16px 20px;border:1px solid var(--border);background:var(--bg1);display:flex;gap:12px;align-items:flex-start;animation:fadeUp 0.6s 0.3s ease both}
+  .disclaimer p{font-family:'IBM Plex Sans',sans-serif;font-size:11px;color:var(--t2);line-height:1.6}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .result-grid>*:nth-child(1){animation-delay:0s}
+  .result-grid>*:nth-child(2){animation-delay:0.08s}
+  .finding-row:nth-child(1){animation-delay:0.00s}
+  .finding-row:nth-child(2){animation-delay:0.05s}
+  .finding-row:nth-child(3){animation-delay:0.10s}
+  .finding-row:nth-child(4){animation-delay:0.15s}
+  .finding-row:nth-child(5){animation-delay:0.20s}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 32 32" fill="none"><rect x="1" y="1" width="30" height="30" rx="2" stroke="#252b3a" stroke-width="1"/><path d="M16 7v18M7 16h18" stroke="#4f8ef7" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="16" r="5" stroke="#4f8ef7" stroke-width="1" opacity="0.4"/></svg>
+      </div>
+      <span class="logo-text">WOUND<span>AI</span></span>
+    </div>
+    <span class="header-tag">v2.0 · EfficientNetB0</span>
+  </header>
+
+  <div class="hero">
+    <h1>Wound <em>analysis</em><br>powered by AI</h1>
+    <p>Upload a wound image for automated classification, severity scoring, and clinical findings. Not a substitute for professional diagnosis.</p>
+  </div>
+
+  <div class="main-grid">
+    <div class="card">
+      <div class="card-label">// input image</div>
+      <div id="preview-wrap">
+        <img id="preview-img" src="" alt="Preview">
+        <button class="remove-btn" onclick="removeImage()" type="button">✕ remove</button>
+      </div>
+      <form method="POST" action="/predict" enctype="multipart/form-data" id="upload-form" onsubmit="handleSubmit(event)">
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" name="image" id="file-input" accept="image/*" required onchange="previewFile(this)">
+          <div class="upload-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M14 4v14M8 10l6-6 6 6" stroke="#4f8ef7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20v2a2 2 0 002 2h16a2 2 0 002-2v-2" stroke="#4a5268" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <p><strong>Click to upload</strong> or drag & drop<br>JPG, PNG, BMP · Max 16MB</p>
+        </div>
+        <button class="btn-analyze" type="submit" id="analyze-btn">
+          <span class="spinner"></span>
+          <span class="btn-text">Analyze Wound</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="card" id="right-card">
+      {% if result and result.final %}
+        <div class="verdict-tag">// diagnosis</div>
+        <div class="verdict-label {{ result.final }}">
+          {{ result.final | upper }}
+          {% if result.agreement %}<span class="agree-badge {{ result.agreement }}">{{ result.agreement }} agreement</span>{% endif %}
+        </div>
+        <div class="verdict-stage">{{ result.stage }}</div>
+        <div class="score-row">
+          <span>Severity score</span>
+          <span>{{ result.score }}%</span>
+        </div>
+        <div class="score-bar-bg">
+          <div class="score-bar-fill {{ result.final }}" style="width:{{ result.score }}%"></div>
+        </div>
+        <div class="prob-section">
+          <div class="score-row" style="margin-top:16px;margin-bottom:10px;">
+            <span>Model probabilities</span>
+            <span style="color:var(--t2);font-size:10px">CNN 60% · ML 30% · Med 10%</span>
+          </div>
+          {% for label in ['healthy','inflamed','infected'] %}
+          <div class="prob-row">
+            <span class="prob-name">{{ label }}</span>
+            <div class="prob-bar-bg">
+              <div class="prob-bar-fill {{ label }}" style="width:{{ result.fused_probs[label] if result.fused_probs else 0 }}%"></div>
+            </div>
+            <span class="prob-pct">{{ result.fused_probs[label] if result.fused_probs else '—' }}%</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% if result.low_quality %}
+        <div class="warn-box">⚠ Low image sharpness — results may be less reliable</div>
+        {% endif %}
+      {% else %}
+        <div class="card-label">// system</div>
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--accent)"></div>
+          <p><strong>EfficientNetB0 CNN</strong>Transfer learning on ImageNet. Fine-tuned on wound imagery for spatial feature detection.</p>
+        </div>
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--green)"></div>
+          <p><strong>Random Forest ML</strong>Trained on 12 handcrafted features: redness, exudate, necrosis, texture, entropy, and more.</p>
+        </div>
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--yellow)"></div>
+          <p><strong>Hybrid Fusion</strong>Weighted combination (60/30/10) of CNN, ML, and medical signal for a robust verdict.</p>
+        </div>
+        <div class="info-item">
+          <div class="info-dot" style="background:var(--red)"></div>
+          <p><strong>Severity Scoring</strong>0–100 scale across 4 clinical stages from Healthy to Severe Infection.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if result and result.final %}
+  <div class="result-section">
+    <div class="result-grid">
+      <div class="models-card">
+        <div class="card-label">// model outputs</div>
+        <div class="model-row">
+          <span class="model-name">CNN · EfficientNetB0</span>
+          <div class="model-result">
+            <span class="model-class {{ result.cnn.class }}">{{ result.cnn.class | upper }}</span>
+            <span class="model-conf">{{ result.cnn.confidence }}%</span>
+          </div>
+        </div>
+        <div class="model-row">
+          <span class="model-name">ML · Random Forest</span>
+          <div class="model-result">
+            <span class="model-class {{ result.ml.class }}">{{ result.ml.class | upper }}</span>
+            <span class="model-conf">{{ result.ml.confidence }}%</span>
+          </div>
+        </div>
+        <div class="model-row">
+          <span class="model-name">Overall confidence</span>
+          <div class="model-result">
+            <span class="model-conf" style="color:var(--t0)">{{ result.confidence }}%</span>
+          </div>
+        </div>
+        <div class="model-row">
+          <span class="model-name">Medical score</span>
+          <div class="model-result">
+            <span class="model-conf" style="color:var(--t0)">{{ result.medical.score }}%</span>
+          </div>
+        </div>
+        {% if result.blur_score %}
+        <div class="model-row">
+          <span class="model-name">Image sharpness</span>
+          <div class="model-result">
+            <span class="model-conf" style="color:{% if result.blur_score < 30 %}var(--red){% else %}var(--green){% endif %}">{{ result.blur_score }}</span>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      <div class="models-card">
+        <div class="card-label">// severity scale</div>
+        {% set stages=[('0–15','Healthy','green'),('15–35','Mild Inflammation','green'),('35–65','Moderate Infection','yellow'),('65–100','Severe Infection','red')] %}
+        {% for range,name,color in stages %}
+        <div class="model-row">
+          <span class="model-name">{{ range }}</span>
+          <div class="model-result">
+            <span class="model-class" style="color:var(--{{ color }})">{{ name }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="findings-card">
+      <div class="card-label" style="margin-bottom:16px">// clinical findings</div>
+      {% if result.findings %}
+        {% for finding in result.findings %}
+        <div class="finding-row">
+          <span class="finding-icon" style="color:var(--accent)">›</span>
+          <span class="finding-text">{{ finding }}</span>
+        </div>
+        {% endfor %}
+      {% endif %}
+      {% if result.risk_flags %}
+        {% for flag in result.risk_flags %}
+        <div class="finding-row">
+          <span class="finding-icon" style="color:var(--red)">⚠</span>
+          <span class="finding-text" style="color:var(--red)">{{ flag }}<span class="risk-badge">HIGH RISK</span></span>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  
+<!-- FEEDBACK SECTION — paste this AFTER findings-card div and BEFORE {% endif %} -->
+  {% if result and result._record_id %}
+  <div style="background:#0f1218;border:1px solid #252b3a;padding:24px;margin-top:20px">
+    <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:#4a5268;margin-bottom:16px">// was this correct?</div>
+
+    {% if result._auto_flagged %}
+    <div style="padding:10px 14px;border:1px solid rgba(79,142,247,0.3);background:rgba(79,142,247,0.08);color:#4f8ef7;font-size:11px;margin-bottom:16px">
+      ⓘ Low confidence prediction — your feedback is especially valuable here
+    </div>
+    {% endif %}
+
+    <div id="feedback-buttons" style="display:flex;gap:10px;flex-wrap:wrap">
+      <button onclick="sendFeedback('{{ result.final }}')"
+              style="padding:10px 20px;background:rgba(52,201,122,0.15);color:#34c97a;border:1px solid rgba(52,201,122,0.3);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer">
+        ✓ Correct — {{ result.final | upper }}
+      </button>
+
+      <button onclick="showCorrection()"
+              style="padding:10px 20px;background:rgba(232,74,74,0.1);color:#e84a4a;border:1px solid rgba(232,74,74,0.2);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer">
+        ✕ Wrong — Correct it
+      </button>
+    </div>
+
+    <!-- Correction panel (hidden by default) -->
+    <div id="correction-panel" style="display:none;margin-top:16px">
+      <div style="font-size:11px;color:#8892a8;margin-bottom:10px">Select the correct diagnosis:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        {% for label, color in [('healthy','#34c97a'),('inflamed','#f0a528'),('infected','#e84a4a')] %}
+        <button onclick="sendFeedback('{{ label }}')"
+                style="padding:10px 20px;background:rgba(30,34,48,0.8);color:{{ color }};border:1px solid {{ color }}40;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer">
+          {{ label | upper }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Success message -->
+    <div id="feedback-thanks" style="display:none;padding:10px 14px;background:rgba(52,201,122,0.1);color:#34c97a;font-size:12px;margin-top:12px;border:1px solid rgba(52,201,122,0.2)">
+      ✓ Feedback saved — thank you! This helps improve the model.
+    </div>
+  </div>
+
+  <script>
+    const RECORD_ID = "{{ result._record_id }}";
+
+    function showCorrection() {
+      document.getElementById('correction-panel').style.display = 'block';
+    }
+
+    async function sendFeedback(label) {
+      document.getElementById('feedback-buttons').style.opacity = '0.4';
+      document.getElementById('feedback-buttons').style.pointerEvents = 'none';
+
+      try {
+        const r = await fetch('/feedback', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({record_id: RECORD_ID, user_label: label})
+        });
+        const data = await r.json();
+
+        document.getElementById('feedback-buttons').style.display = 'none';
+        document.getElementById('correction-panel').style.display = 'none';
+        document.getElementById('feedback-thanks').style.display = 'block';
+      } catch(e) {
+        document.getElementById('feedback-buttons').style.opacity = '1';
+        document.getElementById('feedback-buttons').style.pointerEvents = 'auto';
+        alert('Could not save feedback. Please try again.');
+      }
+    }
+  </script>
+  {% endif %}
+  </div>
+
+  {% if error %}
+  <div class="error-box">✕ {{ error }}</div>
+  {% endif %}
+
+  <div class="disclaimer">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="#4a5268" stroke-width="1"/><path d="M8 5v4M8 11v.5" stroke="#4a5268" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <p>This tool is intended for research and educational purposes only. Output is generated by a machine learning model and <strong style="color:var(--t1)">does not constitute medical advice</strong>. Always consult a qualified healthcare professional for wound assessment and treatment decisions.</p>
+  </div>
+</div>
+
+<script>
+  function previewFile(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('preview-img').src = e.target.result;
+      document.getElementById('preview-wrap').style.display = 'block';
+      document.getElementById('upload-zone').style.display = 'none';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+  function removeImage() {
+    document.getElementById('file-input').value = '';
+    document.getElementById('preview-wrap').style.display = 'none';
+    document.getElementById('upload-zone').style.display = 'block';
+  }
+  function handleSubmit(e) {
+    const btn = document.getElementById('analyze-btn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    btn.querySelector('.btn-text').textContent = 'Analyzing…';
+  }
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      document.getElementById('file-input').files = files;
+      previewFile(document.getElementById('file-input'));
+    }
+  });
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.score-bar-fill, .prob-bar-fill').forEach(el => {
+      const target = el.style.width;
+      el.style.width = '0';
+      setTimeout(() => el.style.width = target, 100);
+    });
+  });
+</script>
+</body>
+</html>
